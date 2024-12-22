@@ -5,6 +5,8 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-38B2AC.svg)](https://tailwindcss.com/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
+🔗 [Live Demo](https://yuubae215.github.io/file-binder/)
+
 Binder is a modern, efficient file organization tool built with SvelteKit and Tailwind CSS. It helps you manage, combine, and process multiple files and directories with ease, perfect for developers working with complex codebases.
 
 ## ✨ Features
@@ -70,23 +72,32 @@ npm run preview
 
 ### .loadignore Support
 
-Create a `.loadignore` file in any directory to exclude specific files or patterns:
+Create a `.loadignore` file in any directory to exclude specific files or patterns. The `.loadignore` file supports various pattern matching syntax similar to `.gitignore`:
+
+- `*` - Matches any string except path separator
+- `**` - Matches any string including path separator
+- `?` - Matches any single character except path separator
+- `[abc]` - Matches any character in the brackets
+- `[!abc]` - Matches any character not in the brackets
+- `{foo,bar}` - Matches any of the patterns separated by commas
+
+Examples:
 
 ```plaintext
-node_modules
-*.log
-.DS_Store
+# Comments start with #
+*.log                   # All log files
+**/node_modules        # node_modules directory at any level
+{temp,tmp}*/           # Directories starting with temp or tmp
+**/*{test,spec}.js    # Files ending with test.js or spec.js
+[abc]*.txt            # Files starting with a, b, or c
+[!0-9]*.js           # Files not starting with a number
+?cache/              # Single character + cache directory
+dist/                # dist directory
+build/               # build directory
+.DS_Store            # macOS system files
 ```
 
-## 🤝 Contributing
-
-Contributions are always welcome! Please read our [contributing guidelines](CONTRIBUTING.md) first.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Patterns are evaluated in order, and the first match determines whether a file is ignored.
 
 ## 📄 License
 

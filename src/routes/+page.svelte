@@ -65,26 +65,54 @@
 		return patterns;
 	}
 
+	function convertPatternToRegExp(pattern: string): RegExp {
+		// エスケープが必要な特殊文字をエスケープ
+		const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+
+		// **/ パターンを一時的なトークンに置換
+		let converted = escaped.replace(/\*\*/g, "GLOBSTAR");
+
+		// 各種パターンを正規表現に変換
+		converted = converted
+			// ? を任意の1文字に
+			.replace(/\?/g, "[^/]")
+			// * を任意の文字列（ただし/は除く）に
+			.replace(/\*/g, "[^/]*")
+			// GLOBSTAR を任意のパス（/を含む）に戻す
+			.replace(/GLOBSTAR/g, ".*");
+
+		// 文字クラスと否定文字クラスはそのまま正規表現として有効
+		// [abc], [!abc] は有効な正規表現なのでそのまま使える
+
+		// {pattern1,pattern2} 形式を (pattern1|pattern2) に変換
+		converted = converted.replace(
+			/\{([^{}]*)\}/g,
+			(_, contents) => `(${contents.split(",").join("|")})`,
+		);
+
+		// パスの先頭と末尾の任意性を考慮
+		return new RegExp(`^(.*\\/)?${converted}(\\/.*)?$`);
+	}
+
 	// ファイルがignoreパターンにマッチするかチェックする関数
 	function shouldIgnoreFile(
 		filePath: string,
 		ignorePatterns: Set<string>,
 	): boolean {
 		log(`Checking if ${filePath} should be ignored`);
+
 		for (const pattern of ignorePatterns) {
-			// パターンを正規表現に変換
-			const regexPattern = pattern
-				.split("*")
-				.map(escapeRegExp)
-				.join(".*");
-			// ファイルパスの先頭に任意のディレクトリを許容する
-			const regex = new RegExp(`^(.*\\/)?${regexPattern}(\\/.*)?$`);
+			if (pattern.startsWith("#") || pattern.trim() === "") continue;
+
+			const regex = convertPatternToRegExp(pattern.trim());
 			log(`  Checking against pattern: ${pattern} (regex: ${regex})`);
+
 			if (regex.test(filePath)) {
 				log(`  Matched! File will be ignored.`);
 				return true;
 			}
 		}
+
 		log(`  No match found. File will be included.`);
 		return false;
 	}
