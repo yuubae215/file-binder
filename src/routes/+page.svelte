@@ -279,28 +279,123 @@
 		}
 	}
 
+	// ファイルパスからツリー構造を構築する関数
+	function buildFileTree(files: { path: string }[]) {
+		const tree = {};
+
+		for (const file of files) {
+			const parts = file.path.split("/");
+			let current = tree;
+
+			for (const part of parts.slice(0, -1)) {
+				if (!current[part]) {
+					current[part] = {};
+				}
+				current = current[part];
+			}
+
+			const fileName = parts[parts.length - 1];
+			current[fileName] = null;
+		}
+
+		return tree;
+	}
+
+	// ツリー構造からMermaid記法を生成する関数
+	function generateMermaidDiagram(
+		tree: object,
+		parentId: string = "root",
+	): string {
+		let mermaidCode = "";
+		let nodeId = 0;
+
+		const generateNodes = (
+			tree: object,
+			parentId: string = "root",
+		): string => {
+			let code = "";
+
+			for (const [name, subtree] of Object.entries(tree)) {
+				const currentId = `node${nodeId++}`;
+				const isDirectory = subtree !== null;
+
+				// ノードの形状を設定（ディレクトリは六角形、ファイルは長方形）
+				if (isDirectory) {
+					code += `  ${currentId}[/${name}/]\n`;
+				} else {
+					code += `  ${currentId}[${name}]\n`;
+				}
+
+				// 親ノードとの接続を設定
+				code += `  ${parentId} --> ${currentId}\n`;
+
+				// サブディレクトリを再帰的に処理
+				if (isDirectory) {
+					code += generateNodes(subtree, currentId);
+				}
+			}
+
+			return code;
+		};
+
+		mermaidCode = "graph TD\n";
+		mermaidCode += "  root[/Project Root/]\n";
+		mermaidCode += generateNodes(tree);
+
+		return mermaidCode;
+	}
+
 	async function combineFiles() {
 		isCombining = true;
-		combinedContent = "";
 
+		// ヘッダーとファイル構造図を追加
+		combinedContent = "# Combined Files\n\n";
+		combinedContent += "## File Structure\n\n";
+		combinedContent += "```mermaid\n";
+
+		// ファイルツリーを構築してMermaidダイアグラムを生成
+		const tree = buildFileTree(files);
+		combinedContent += generateMermaidDiagram(tree);
+		combinedContent += "```\n\n";
+
+		// 各ファイルの内容を追加
+		combinedContent += "## File Contents\n\n";
 		for (const file of files) {
 			try {
 				const text = await file.file.text();
-				combinedContent += `// File: ${file.path}\n${text}\n\n`;
+				const fileName = file.path;
+				combinedContent += `### ${fileName}\n\`\`\`${getFileExtension(fileName)}\n${text}\n\`\`\`\n\n`;
 			} catch (err) {
 				console.error(`Error processing file ${file.path}:`, err);
-				combinedContent += `// Error processing file: ${file.path}\n// ${err.message}\n\n`;
+				combinedContent += `### Error: ${file.path}\n\`\`\`\nError: ${err.message}\n\`\`\`\n\n`;
 			}
 		}
 
 		isCombining = false;
 	}
 
+	function getFileExtension(fileName: string): string {
+		const ext = fileName.split(".").pop()?.toLowerCase();
+		const extensionMap = {
+			js: "javascript",
+			ts: "typescript",
+			jsx: "javascript",
+			tsx: "typescript",
+			yml: "yaml",
+			json: "json",
+			md: "markdown",
+			css: "css",
+			html: "html",
+			svelte: "svelte",
+		};
+		return extensionMap[ext] || "";
+	}
+
 	function downloadCombinedFile() {
 		const blob = new Blob([combinedContent], {
-			type: "text/plain;charset=utf-8",
+			type: "text/markdown;charset=utf-8",
 		});
-		saveAs(blob, "base-code.txt");
+		saveAs(blob, "base-code.md");
 	}
 </script>
 
